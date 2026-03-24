@@ -8,12 +8,8 @@ st.set_page_config(layout="wide", page_title="14人智能排班管理系统")
 ADMIN_PASSWORD = "admin888"  # 你可以修改这个密码
 
 # --- CSS 样式：报警灯 ---
-st.markdown("""
-    <style>
-    .alarm-red { padding: 15px; background-color: #ff4b4b; color: white; border-radius: 8px; margin-bottom: 20px; font-size: 18px; }
-    .alarm-green { padding: 15px; background-color: #28a745; color: white; border-radius: 8px; margin-bottom: 20px; font-size: 18px; }
-    </style>
-""", unsafe_content_html=True)
+# 将原来的写法替换为下面这段：
+st.markdown('<style>.alarm-red { padding: 15px; background-color: #ff4b4b; color: white; border-radius: 8px; margin-bottom: 20px; font-size: 18px; } .alarm-green { padding: 15px; background-color: #28a745; color: white; border-radius: 8px; margin-bottom: 20px; font-size: 18px; }</style>', unsafe_content_html=True)
 
 # --- 权限控制逻辑 ---
 if "is_admin" not in st.session_state:
