@@ -84,9 +84,9 @@ df, error_list = generate_schedule(31, st.session_state.prefs, True)
 
 # --- 报警灯显示 ---
 if not error_list:
-    st.markdown('<div class="alarm-green">🟢 状态正常：满足 5A + 5C 且符合所有衔接规则。</div>', unsafe_content_html=True)
+    st.markdown('<div class="alarm-green">🟢 状态正常：满足 5A + 5C 且符合所有衔接规则。</div>', unsafe_allow_html=True)
 else:
-    st.markdown(f'<div class="alarm-red">🔴 警告：{", ".join(error_list[:2])} 等冲突，请检查偏好。</div>', unsafe_content_html=True)
+    st.markdown(f'<div class="alarm-red">🔴 警告：{", ".join(error_list[:2])} 等冲突，请检查偏好。</div>', unsafe_allow_html=True)
 
 # --- 班表展示 ---
 st.subheader("当前最新排班表")
