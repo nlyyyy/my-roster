@@ -111,8 +111,17 @@ if st.session_state.is_admin:
                 st.rerun()
 
 # 执行排班
+# --- 调用排班引擎 (约在代码第 80 行左右) ---
 if "prefs" not in st.session_state: st.session_state.prefs = {}
-df, error_list = generate_schedule(31, st.session_state.prefs, True)
+
+# 确保参数一一对应：天数, 偏好字典, 是否开启严格模式
+df, error_list = generate_schedule(
+    days=31, 
+    holidays=getattr(st.session_state, 'holidays', []), # 如果没有节假日则传空列表
+    prefs=st.session_state.prefs, 
+    use_strict=True
+)
+
 
 # --- 报警灯显示 ---
 if not error_list:
