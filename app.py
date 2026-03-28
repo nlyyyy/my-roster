@@ -21,8 +21,11 @@ if "is_admin" not in st.session_state:
 
 # --- 数据初始化 ---
 if "staff_config" not in st.session_state:
-    # 默认11人，月最大上班天数默认22天（参考中国法定工作日）
+    # 恢复默认 22 天，作为硬性指标
     st.session_state.staff_config = {f"人员{i:02d}": {"max_days": 22} for i in range(1, 12)}
+if "daily_reqs" not in st.session_state:
+    # 默认需求：A班 5人，C班 4人
+    st.session_state.daily_reqs = {"min_a": 5, "min_c": 4}
 if "prefs" not in st.session_state:
     st.session_state.prefs = {}
 
@@ -37,10 +40,13 @@ with st.sidebar:
         if pwd: st.error("密码错误")
 
 # --- 核心排班函数 (包含冲突检测) ---
-def generate_schedule(days, prefs, staff_config):
+def generate_schedule(days, prefs, staff_config, daily_reqs):
     staff_names = list(staff_config.keys())
     df = pd.DataFrame("休", index=staff_names, columns=range(1, days + 1))
     errors = []
+    
+    min_a = daily_reqs["min_a"]
+    min_c = daily_reqs["min_c"]
 
     # 统计每个人的已排班天数
     work_days_count = {name: 0 for name in staff_names}
@@ -66,10 +72,10 @@ def generate_schedule(days, prefs, staff_config):
 
         candidates = [n for n in staff_names if n not in today_assigned]
         
-        # 填充 A 班 (5人)
-        needed_a = max(0, 5 - list(today_assigned.values()).count("A"))
+        # 填充 A 班
+        needed_a = max(0, min_a - list(today_assigned.values()).count("A"))
         
-        # 过滤 A 班候选人：1. C不接A 2. 连续上班不超过6天 3. 月总天数不超过限制
+        # 过滤 A 班候选人
         a_pool = [
             n for n in candidates 
             if not (d > 1 and df.at[n, d-1] == "C") 
@@ -87,10 +93,10 @@ def generate_schedule(days, prefs, staff_config):
             consecutive_days[n] += 1
             candidates.remove(n)
 
-        # 填充 C 班 (4人)
-        needed_c = max(0, 4 - list(today_assigned.values()).count("C"))
+        # 填充 C 班
+        needed_c = max(0, min_c - list(today_assigned.values()).count("C"))
         
-        # 过滤 C 班候选人：1. 连续上班不超过6天 2. 月总天数不超过限制
+        # 过滤 C 班候选人
         c_pool = [
             n for n in candidates 
             if consecutive_days[n] < 6 
@@ -111,8 +117,8 @@ def generate_schedule(days, prefs, staff_config):
             if shift == "休":
                 consecutive_days[n] = 0
                 
-        if (df[d] == "A").sum() < 5: errors.append(f"{d}日A班不足")
-        if (df[d] == "C").sum() < 4: errors.append(f"{d}日C班不足")
+        if (df[d] == "A").sum() < min_a: errors.append(f"{d}日A班不足")
+        if (df[d] == "C").sum() < min_c: errors.append(f"{d}日C班不足")
             
     return df, errors
 
@@ -121,8 +127,8 @@ st.title("📅 智能排班在线管理平台")
 
 # 仅管理员可见的操作区
 if st.session_state.is_admin:
-    with st.expander("🛠️ 管理员操作面板 - 录入偏好与人员管理", expanded=True):
-        tab1, tab2 = st.tabs(["人员与规则管理", "录入偏好"])
+    with st.expander("🛠️ 管理员操作面板 - 配置规则与偏好", expanded=True):
+        tab1, tab2, tab3 = st.tabs(["人员管理", "每日人数需求", "录入偏好"])
         
         with tab1:
             col_a, col_b = st.columns(2)
@@ -137,12 +143,8 @@ if st.session_state.is_admin:
                 if st.button("🗑️ 删除人员"):
                     if del_staff in st.session_state.staff_config:
                         del st.session_state.staff_config[del_staff]
-                        # 同时清除该人员的偏好
                         st.session_state.prefs = {k: v for k, v in st.session_state.prefs.items() if k[0] != del_staff}
                         st.rerun()
-            
-            if len(st.session_state.staff_config) < 9:
-                st.warning("⚠️ 当前人员不足9人，无法满足每日 5A + 4C 的排班需求！")
             
             st.divider()
             st.write("配置人员月最大上班天数")
@@ -155,6 +157,18 @@ if st.session_state.is_admin:
                     st.session_state.staff_config[s_name]["max_days"] = new_max
 
         with tab2:
+            st.write("设置每日班次最低人数需求")
+            col_r1, col_r2 = st.columns(2)
+            with col_r1:
+                st.session_state.daily_reqs["min_a"] = st.number_input("每日最低 A 班人数", 0, len(st.session_state.staff_config), st.session_state.daily_reqs["min_a"])
+            with col_r2:
+                st.session_state.daily_reqs["min_c"] = st.number_input("每日最低 C 班人数", 0, len(st.session_state.staff_config), st.session_state.daily_reqs["min_c"])
+            
+            total_req_per_day = st.session_state.daily_reqs["min_a"] + st.session_state.daily_reqs["min_c"]
+            if total_req_per_day > len(st.session_state.staff_config):
+                st.error(f"⚠️ 警告：每日需求总数 ({total_req_per_day}) 超过了总人数 ({len(st.session_state.staff_config)})！")
+
+        with tab3:
             col1, col2, col3 = st.columns(3)
             with col1:
                 p_staff = st.selectbox("选择人员", list(st.session_state.staff_config.keys()), key="p_staff_select")
@@ -170,13 +184,19 @@ if st.session_state.is_admin:
                     st.rerun()
 
 # 执行排班
-df, error_list = generate_schedule(31, st.session_state.prefs, st.session_state.staff_config)
+df, error_list = generate_schedule(31, st.session_state.prefs, st.session_state.staff_config, st.session_state.daily_reqs)
+
+# 计算总工日供需关系
+total_needed = (st.session_state.daily_reqs["min_a"] + st.session_state.daily_reqs["min_c"]) * 31
+total_available = sum(s["max_days"] for s in st.session_state.staff_config.values())
 
 # --- 报警灯显示 ---
-if not error_list:
-    st.markdown('<div class="alarm-green">🟢 状态正常：满足 5A + 4C 且符合所有衔接规则。</div>', unsafe_allow_html=True)
+if total_available < total_needed:
+    st.markdown(f'<div class="alarm-red">⚠️ 警告：总人员配置不足！全月需要 {total_needed} 个工日，但你只配置了 {total_available} 个工日。请下调每日需求或增加最大天数。</div>', unsafe_allow_html=True)
+elif not error_list:
+    st.markdown(f'<div class="alarm-green">🟢 状态正常：满足每日 {st.session_state.daily_reqs["min_a"]}A + {st.session_state.daily_reqs["min_c"]}C 且符合所有衔接规则。</div>', unsafe_allow_html=True)
 else:
-    st.markdown(f'<div class="alarm-red">🔴 警告：{", ".join(error_list[:2])} 等冲突，请检查偏好。</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="alarm-red">🔴 警告：{", ".join(error_list[:2])} 等冲突，请检查偏好或下调每日需求。</div>', unsafe_allow_html=True)
 
 # --- 班表展示 ---
 st.subheader("当前最新排班表")
@@ -184,4 +204,3 @@ st.dataframe(df.style.applymap(lambda v: 'background-color: #d1e7dd' if v=='A' e
 
 if st.session_state.is_admin:
     st.download_button("📥 点击下载 Excel 班表", df.to_csv().encode('utf-8-sig'), "排班表.csv")
-
