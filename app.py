@@ -13,7 +13,7 @@ st.markdown("""
     .alarm-red { padding: 15px; background-color: #ff4b4b; color: white; border-radius: 8px; margin-bottom: 20px; font-size: 18px; }
     .alarm-green { padding: 15px; background-color: #28a745; color: white; border-radius: 8px; margin-bottom: 20px; font-size: 18px; }
     </style>
-""", unsafe_content_html=True)
+""", unsafe_allow_html=True)
 
 # --- 权限控制逻辑 ---
 if "is_admin" not in st.session_state:
@@ -174,9 +174,9 @@ df, error_list = generate_schedule(31, st.session_state.prefs, st.session_state.
 
 # --- 报警灯显示 ---
 if not error_list:
-    st.markdown('<div class="alarm-green">🟢 状态正常：满足 5A + 5C 且符合所有衔接规则。</div>', unsafe_content_html=True)
+    st.markdown('<div class="alarm-green">🟢 状态正常：满足 5A + 5C 且符合所有衔接规则。</div>', unsafe_allow_html=True)
 else:
-    st.markdown(f'<div class="alarm-red">🔴 警告：{", ".join(error_list[:2])} 等冲突，请检查偏好。</div>', unsafe_content_html=True)
+    st.markdown(f'<div class="alarm-red">🔴 警告：{", ".join(error_list[:2])} 等冲突，请检查偏好。</div>', unsafe_allow_html=True)
 
 # --- 班表展示 ---
 st.subheader("当前最新排班表")
