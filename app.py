@@ -21,8 +21,8 @@ if "is_admin" not in st.session_state:
 
 # --- 数据初始化 ---
 if "staff_config" not in st.session_state:
-    # 默认14人，月最大上班天数默认22天（参考中国法定工作日）
-    st.session_state.staff_config = {f"人员{i:02d}": {"max_days": 22} for i in range(1, 15)}
+    # 默认11人，月最大上班天数默认22天（参考中国法定工作日）
+    st.session_state.staff_config = {f"人员{i:02d}": {"max_days": 22} for i in range(1, 12)}
 if "prefs" not in st.session_state:
     st.session_state.prefs = {}
 
@@ -87,8 +87,8 @@ def generate_schedule(days, prefs, staff_config):
             consecutive_days[n] += 1
             candidates.remove(n)
 
-        # 填充 C 班 (5人)
-        needed_c = max(0, 5 - list(today_assigned.values()).count("C"))
+        # 填充 C 班 (4人)
+        needed_c = max(0, 4 - list(today_assigned.values()).count("C"))
         
         # 过滤 C 班候选人：1. 连续上班不超过6天 2. 月总天数不超过限制
         c_pool = [
@@ -112,7 +112,7 @@ def generate_schedule(days, prefs, staff_config):
                 consecutive_days[n] = 0
                 
         if (df[d] == "A").sum() < 5: errors.append(f"{d}日A班不足")
-        if (df[d] == "C").sum() < 5: errors.append(f"{d}日C班不足")
+        if (df[d] == "C").sum() < 4: errors.append(f"{d}日C班不足")
             
     return df, errors
 
@@ -141,8 +141,8 @@ if st.session_state.is_admin:
                         st.session_state.prefs = {k: v for k, v in st.session_state.prefs.items() if k[0] != del_staff}
                         st.rerun()
             
-            if len(st.session_state.staff_config) < 10:
-                st.warning("⚠️ 当前人员不足10人，无法满足每日 5A + 5C 的排班需求！")
+            if len(st.session_state.staff_config) < 9:
+                st.warning("⚠️ 当前人员不足9人，无法满足每日 5A + 4C 的排班需求！")
             
             st.divider()
             st.write("配置人员月最大上班天数")
@@ -174,7 +174,7 @@ df, error_list = generate_schedule(31, st.session_state.prefs, st.session_state.
 
 # --- 报警灯显示 ---
 if not error_list:
-    st.markdown('<div class="alarm-green">🟢 状态正常：满足 5A + 5C 且符合所有衔接规则。</div>', unsafe_allow_html=True)
+    st.markdown('<div class="alarm-green">🟢 状态正常：满足 5A + 4C 且符合所有衔接规则。</div>', unsafe_allow_html=True)
 else:
     st.markdown(f'<div class="alarm-red">🔴 警告：{", ".join(error_list[:2])} 等冲突，请检查偏好。</div>', unsafe_allow_html=True)
 
@@ -184,3 +184,4 @@ st.dataframe(df.style.applymap(lambda v: 'background-color: #d1e7dd' if v=='A' e
 
 if st.session_state.is_admin:
     st.download_button("📥 点击下载 Excel 班表", df.to_csv().encode('utf-8-sig'), "排班表.csv")
+
